@@ -90,7 +90,7 @@ def chat():
             api_key=os.environ.get("NVIDIA_API_KEY", "")
         )
         completion = client.chat.completions.create(
-            model="google/gemma-3-12b-it",
+            model="nvidia/nemotron-3-super-120b-a12b",
             messages=messages,
             temperature=0.6,
             top_p=0.9,
