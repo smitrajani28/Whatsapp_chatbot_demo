@@ -372,6 +372,11 @@ async function callNemotron(text) {
     const data = await response.json();
     hideTyping();
     renderBotResponse(data);
+    // Save bot reply to history for context
+    if (data.text) {
+      if (!chatHistory[activeContactId]) chatHistory[activeContactId] = [];
+      chatHistory[activeContactId].push({ type: "incoming", text: data.text, time: now() });
+    }
     const contact = contacts.find(c => c.id === activeContactId);
     if (contact) {
       const msg = data.text || (data.actions && data.actions.find(a => a.type === "text")?.content) || "";
