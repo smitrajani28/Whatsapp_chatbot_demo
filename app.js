@@ -304,13 +304,23 @@ async function clearCart() {
 
 // ── Render structured bot response ──
 function renderBotResponse(data) {
-  // Show text as chat bubble
-  if (data.text) {
-    appendMessage("incoming", formatText(data.text), now());
+  // Support both formats:
+  // New: { text: "...", actions: [...] }
+  // Old: { type: "bot_response", actions: [{type:"text", content:"..."}, ...] }
+  let textContent = data.text || null;
+  let actions = data.actions || [];
+
+  // Extract text from old format
+  if (!textContent) {
+    const textAction = actions.find(a => a.type === "text");
+    if (textAction) textContent = textAction.content;
   }
-  // Render actions (product cards, quick replies)
-  if (!data.actions) return;
-  data.actions.forEach(action => {
+
+  if (textContent) {
+    appendMessage("incoming", formatText(textContent), now());
+  }
+
+  actions.forEach(action => {
     if (action.type === "product_list") {
       const row = document.createElement("div");
       row.className = "product-row";
@@ -363,9 +373,9 @@ async function callNemotron(text) {
     hideTyping();
     renderBotResponse(data);
     const contact = contacts.find(c => c.id === activeContactId);
-    if (contact && data.text) {
-      contact.lastMsg = data.text.slice(0, 40) + "...";
-      renderContacts();
+    if (contact) {
+      const msg = data.text || (data.actions && data.actions.find(a => a.type === "text")?.content) || "";
+      if (msg) { contact.lastMsg = msg.slice(0, 40) + "..."; renderContacts(); }
     }
   } catch (err) {
     hideTyping();
