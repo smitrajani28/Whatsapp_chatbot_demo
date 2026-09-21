@@ -4,14 +4,13 @@ import re
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from openai import OpenAI
-from dotenv import load_dotenv
-
-load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 
-with open("shoes.json", "r") as f:
+# Use absolute path so it works on Vercel
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+with open(os.path.join(BASE_DIR, "shoes.json"), "r") as f:
     shoes_data = json.load(f)
 
 products = shoes_data["products"]
@@ -37,11 +36,6 @@ def build_system_prompt():
     return prompt.encode('utf-8', errors='ignore').decode('utf-8')
 
 SYSTEM_PROMPT = build_system_prompt()
-
-client = OpenAI(
-    base_url="https://integrate.api.nvidia.com/v1",
-    api_key=os.environ.get("NVIDIA_API_KEY", "")
-)
 
 # ── Smart product injection ──
 # Scans the bot reply text and finds mentioned product IDs or matching names/brands/categories
@@ -91,6 +85,10 @@ def chat():
     messages.append({"role": "user", "content": user_message})
 
     try:
+        client = OpenAI(
+            base_url="https://integrate.api.nvidia.com/v1",
+            api_key=os.environ.get("NVIDIA_API_KEY", "")
+        )
         completion = client.chat.completions.create(
             model="nvidia/nemotron-3-super-120b-a12b",
             messages=messages,
