@@ -303,20 +303,20 @@ async function clearCart() {
 }
 
 // ── Render structured bot response ──
-function renderBotResponse(response) {
-  if (!response.actions) return;
-  response.actions.forEach(action => {
-    if (action.type === "text") {
-      appendMessage("incoming", formatText(action.content), now());
-    } else if (action.type === "product_list") {
+function renderBotResponse(data) {
+  // Show text as chat bubble
+  if (data.text) {
+    appendMessage("incoming", formatText(data.text), now());
+  }
+  // Render actions (product cards, quick replies)
+  if (!data.actions) return;
+  data.actions.forEach(action => {
+    if (action.type === "product_list") {
       const row = document.createElement("div");
       row.className = "product-row";
       action.products.forEach(id => {
         const product = shoesData.find(p => p.id === id);
-        if (product) {
-          const card = buildProductCard(product);
-          row.appendChild(card);
-        }
+        if (product) row.appendChild(buildProductCard(product));
       });
       document.getElementById("messagesInner").appendChild(row);
       scrollToBottom();
@@ -363,9 +363,8 @@ async function callNemotron(text) {
     hideTyping();
     renderBotResponse(data);
     const contact = contacts.find(c => c.id === activeContactId);
-    if (contact && data.actions) {
-      const textAction = data.actions.find(a => a.type === "text");
-      if (textAction) contact.lastMsg = textAction.content.slice(0, 40) + "...";
+    if (contact && data.text) {
+      contact.lastMsg = data.text.slice(0, 40) + "...";
       renderContacts();
     }
   } catch (err) {

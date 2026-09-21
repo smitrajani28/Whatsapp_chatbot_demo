@@ -90,13 +90,12 @@ def chat():
             api_key=os.environ.get("NVIDIA_API_KEY", "")
         )
         completion = client.chat.completions.create(
-            model="nvidia/nemotron-3-super-120b-a12b",
+            model="google/gemma-3-12b-it",
             messages=messages,
             temperature=0.6,
             top_p=0.9,
-            max_tokens=400,
-            stream=True,
-            extra_body={"chat_template_kwargs": {"enable_thinking": False}}
+            max_tokens=300,
+            stream=True
         )
 
         reply = ""
@@ -110,39 +109,32 @@ def chat():
         # Handle <think>...</think> tags
         if '</think>' in reply:
             reply = reply.split('</think>')[-1].strip()
-        # Handle raw reasoning (lines starting with analysis patterns)
-        # Find the last paragraph that looks like a real reply (short, has emoji or direct answer)
-        lines = reply.strip().split('\n')
-        # Find where reasoning ends - look for a short conclusive line
-        clean_lines = []
-        found_answer = False
-        for i, line in enumerate(reversed(lines)):
-            line = line.strip()
-            if not line:
-                continue
-            # Reasoning lines are usually long and analytical
-            # Real reply lines are short and friendly
-            if len(line) < 300:
-                clean_lines.insert(0, line)
-                if len(clean_lines) >= 3:
-                    break
-        reply = ' '.join(clean_lines).strip() if clean_lines else reply.strip()
+        elif '<think>' in reply:
+            reply = reply.split('<think>')[0].strip()
+        
+        # Handle raw reasoning without tags:
+        # Reasoning paragraphs are long analytical text.
+        # The actual answer is always the LAST short paragraph.
+        paragraphs = [p.strip() for p in reply.strip().split('\n\n') if p.strip()]
+        if len(paragraphs) > 1:
+            # Take only the last paragraph as the real reply
+            reply = paragraphs[-1]
+        
+        reply = reply.strip()
 
         # Build structured response
         product_ids = extract_product_ids(reply, user_message)
         clean_reply = clean_text(reply)
 
-        actions = [{"type": "text", "content": clean_reply}]
-
+        actions = []
         if product_ids:
             actions.append({"type": "product_list", "products": product_ids})
-
         actions.append({
             "type": "quick_replies",
-            "buttons": ["Browse Catalog", "View Cart", "Main Menu"]
+            "buttons": ["Browse Catalog", "Main Menu"]
         })
 
-        return jsonify({"type": "bot_response", "actions": actions})
+        return jsonify({"text": clean_reply, "actions": actions})
 
     except Exception as e:
         print(f"ERROR: {e}", flush=True)
