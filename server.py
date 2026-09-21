@@ -95,7 +95,8 @@ def chat():
             temperature=0.6,
             top_p=0.9,
             max_tokens=400,
-            stream=True
+            stream=True,
+            extra_body={"chat_template_kwargs": {"enable_thinking": False}}
         )
 
         reply = ""
@@ -105,11 +106,27 @@ def chat():
             if chunk.choices[0].delta.content is not None:
                 reply += chunk.choices[0].delta.content
 
-        # Strip thinking block
+        # Strip thinking/reasoning block
+        # Handle <think>...</think> tags
         if '</think>' in reply:
             reply = reply.split('</think>')[-1].strip()
-
-        reply = reply.strip()
+        # Handle raw reasoning (lines starting with analysis patterns)
+        # Find the last paragraph that looks like a real reply (short, has emoji or direct answer)
+        lines = reply.strip().split('\n')
+        # Find where reasoning ends - look for a short conclusive line
+        clean_lines = []
+        found_answer = False
+        for i, line in enumerate(reversed(lines)):
+            line = line.strip()
+            if not line:
+                continue
+            # Reasoning lines are usually long and analytical
+            # Real reply lines are short and friendly
+            if len(line) < 300:
+                clean_lines.insert(0, line)
+                if len(clean_lines) >= 3:
+                    break
+        reply = ' '.join(clean_lines).strip() if clean_lines else reply.strip()
 
         # Build structured response
         product_ids = extract_product_ids(reply, user_message)
